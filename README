@@ -1,0 +1,13 @@
+DBScript
+--------
+
+Utility to assist with generating version-controllable SQLServer database schema.
+
+The ggenerated scripts can be checked in alongside application code.
+
+Development databases can be rebuilt from previously generated scripts including required data and 'fixtures'
+
+Functions:
+  Script database objects
+  Create database from scripted objects
+  Script data from specified table 
