@@ -35,7 +35,8 @@ namespace dbscript
             *  -s <server instance>
             *  -u <username>
             *  -p <password>
-            *  -d <database name> 
+            *  -d <database name>
+            *  -t trusted connection
             *  
             *  [for scripting data]
             *  --table <table name> 
@@ -51,6 +52,7 @@ namespace dbscript
             string pwd = "";
             string dbs = "";
             string pth = "";
+            bool trustedConnection = false;
 
             // other options
             string tbl = "";
@@ -59,8 +61,8 @@ namespace dbscript
             bool with_fixtures = false;
             string where_clause = "";
 
-            // 10+ parameters are required 
-            if (args.Length < 9)
+            // 7+ parameters are required 
+            if (args.Length < 8)
             {
                 PrintInstructions();
                 return;
@@ -97,7 +99,10 @@ namespace dbscript
                     case "-p":
                         pwd = args[i + 1];
                         break;
-                    
+                    case "-t":
+                        if (pwd != "" || usr != "") Console.WriteLine(args[i] + "argument only applies if no usrname or password is set");
+                        trustedConnection = true;
+                        break;
                     case "--fixtures":
                         if (util.ToLower() == CMD_SCRIPT_OBJECTS) Console.WriteLine(args[i] + " argument does not apply to the ScriptDbObjects utility");
                         with_fixtures = true;
@@ -131,7 +136,7 @@ namespace dbscript
             //
 
             // all of these are required all the time
-            if (svr == "" || usr == "" || pwd == "" || pth == "")
+            if (pwd != "" && trustedConnection || usr != "" && trustedConnection || svr == "" || pth == "")
             {
                 PrintInstructions();
                 return;
@@ -161,7 +166,7 @@ namespace dbscript
             }
 
             // establish and test db connection
-            Connection connection = new Connection(svr, usr, pwd);
+            Connection connection = new Connection(svr, usr, pwd, trustedConnection);
             if (connection.testConnection() != true)
             {
                 Console.WriteLine("Database connection could not be established.");
@@ -213,7 +218,7 @@ DBScripter - DataBase scripting tool.
 Usage:
 ---------------------------------
 
-> dbscript <UtilityName> -f ""<Path>"" -s <ServerName> -u <Username> -p <Password> -d <Database> [--table <Table> --alltables --limit --fixtures]
+> dbscript <UtilityName> -f ""<Path>"" -s <ServerName> -u <Username> -p <Password> -d <Database> -t [--table <Table> --alltables --limit --fixtures]
 
 Available utilities are ScriptDbObjects, ScriptData & CreateDatabase
 
@@ -225,6 +230,8 @@ When creating a database, the Root Path directory must contain a ""databasename.
 If the database already exists, it will be dropped and then recreated. 
 
 When creating or scripting databases the user credentials supplied should have sufficient permissions (preferably 'sa' account).
+
+-t option is trusted connection, can be used instead of username and password.
 
 
 Options:
