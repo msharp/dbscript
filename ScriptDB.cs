@@ -77,7 +77,7 @@ namespace dbscript
             
 
             // scripting the objects
-            scriptDatabase(db, scrp, urn);
+            //scriptDatabase(db, scrp, urn);
             scriptTables(db, scrp, urn);
             scriptViews(db, scrp, urn);
             scriptStoredProcedures(db, scrp, urn);
@@ -139,7 +139,7 @@ namespace dbscript
         void scriptTables(Database db, Scripter scrp, Urn[] urn)
         {
             string filename;
-            string tblPath = m_dbPath + @"\Tables";
+            string tblPath = m_dbPath + @"\Up";
             Directory.CreateDirectory(tblPath);
 
             foreach (Table tbl in db.Tables)
@@ -177,7 +177,7 @@ namespace dbscript
                 string keyPath = tblPath + @"\Keys";
                 Directory.CreateDirectory(keyPath);
 
-                string ndxPath = tblPath + @"\Indexes";
+                string ndxPath = tblPath + @"..\..\Indexes";
                 Directory.CreateDirectory(ndxPath);
 
                 foreach (Index ndx in tbl.Indexes)
@@ -315,7 +315,7 @@ namespace dbscript
 
 
                 // Script View Indexes
-                string ndxPath = vwPath + @"\Indexes";
+                string ndxPath = vwPath + @"..\..\Indexes";
                 Directory.CreateDirectory(ndxPath);
 
                 foreach (Index ndx in vw.Indexes)
@@ -354,7 +354,7 @@ namespace dbscript
         void scriptStoredProcedures(Database db, Scripter scrp, Urn[] urn)
         {
             string filename;
-            string procPath = m_dbPath + @"\Stored Procedures";
+            string procPath = m_dbPath + @"\Sprocs";
             Directory.CreateDirectory(procPath);
 
             scrp.Options.Permissions = true;
