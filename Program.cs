@@ -47,7 +47,7 @@ namespace dbscript
            */
             
             // basic options
-            string svr = "";
+            string svr = ""; 
             string usr = "";
             string pwd = "";
             string dbs = "";
@@ -143,19 +143,23 @@ namespace dbscript
             }
 
             // if creating a database - it should only be a local instance??
+            /*
             if (util.ToLower() == CMD_CREATE_DATABASE && !svr.Contains(@"\SQLEXPRESS"))
             {
                 Console.WriteLine("The " + util + " function should only be used on workstation installations of SQLEXPRESS.");
                 return;
             }
+            */
 
             // if creating a database or insert script, need the db name
+            /*
             if ((util.ToLower() == CMD_CREATE_DATABASE || util.ToLower() == CMD_SCRIPT_DATA) && dbs == "")
             {
                 Console.WriteLine("The " + util + " function requires the database name to be specified.");
                 PrintInstructions();
                 return;
             }
+            */
 
             // if scripting table data, tablename must be provided
             if (util.ToLower() == CMD_SCRIPT_DATA && tbl == "" && all_tables == false)
@@ -181,11 +185,12 @@ namespace dbscript
             }
 
             // Create Database
+            /*
             if (util.ToLower() == CMD_CREATE_DATABASE)
             {
                 CreateDatabase db = new CreateDatabase(connection, pth, dbs, with_fixtures);
             }
-
+            */
             // Script Objects
             if (util.ToLower() == CMD_SCRIPT_OBJECTS)
             {
@@ -220,18 +225,15 @@ Usage:
 
 > dbscript <UtilityName> -f ""<Path>"" -s <ServerName> -u <Username> -p <Password> -d <Database> -t [--table <Table> --alltables --limit --fixtures]
 
-Available utilities are ScriptDbObjects, ScriptData & CreateDatabase
+Available utilities are ScriptDbObjects & ScriptData 
 
 The <Root Path> is the starting point for reading/writing all your database creation scripts (probably within a subversion branch).
 The <ServerName> is the server instance you are connectiong to. For a local installation of SQLEXPRESS it will be PCNAME\SQLEXPRESS
 <Database> is the database you want to script or build. This parameter is optional when using ScriptDbObjects. If it is not supplied the utility will script all databases.      
 
-When creating a database, the Root Path directory must contain a ""databasename.database.sql"" file as created by the ScriptDbObjects utility. 
-If the database already exists, it will be dropped and then recreated. 
+When scripting databases the user credentials supplied should have sufficient permissions (preferably 'sa' account).
 
-When creating or scripting databases the user credentials supplied should have sufficient permissions (preferably 'sa' account).
-
--t option is trusted connection, can be used instead of username and password.
+-t option is trusted connection, which can be used instead of username and password.
 
 
 Options:
@@ -251,8 +253,6 @@ Examples:
 ---------------------------------
 
 > dbscript ScriptDbObjects -f ""\dev\files\branches\myFeatureBranch\Databases"" -s MYPC\SQLEXPRESS -u sa -p adminpass -d textme
-
-> dbscript CreateDatabase -d textme -f ""\dev\files\branches\myFeatureBranch\Databases"" -s MYPC\SQLEXPRESS -u sa -p adminpass --fixtures
 
 > dbscript ScriptData  -d textme --table GlobalOptions -f ""\dev\files\branches\myFeatureBranch\Databases"" -s MYPC\SQLEXPRESS -u sa -p adminpass
 
