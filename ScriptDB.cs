@@ -79,6 +79,7 @@ namespace dbscript
 
             // scripting the objects
             //scriptDatabase(db, scrp, urn);
+            scriptUsers(db, scrp, urn);
             scriptTables(db, scrp, urn);
             scriptViews(db, scrp, urn);
             scriptStoredProcedures(db, scrp, urn);
@@ -158,6 +159,34 @@ $3");
         }
 
         /*******************************************************************************
+        * Script Users
+        *******************************************************************************/
+        void scriptUsers(Database db, Scripter scrp, Urn[] urn)
+        {
+            string filename;
+            string userPath = _dbPath + @"\runAfterCreateDatabase";
+            Directory.CreateDirectory(userPath);
+
+            scrp.Options.Permissions = true;
+
+            foreach (User user in db.Users)
+            {
+                // skip system procedures
+                if (user.IsSystemObject)
+                {
+                    continue;
+                }
+
+                urn[0] = user.Urn;
+
+                filename = userPath + @"\" + scrub(user.Name) + ".user.sql";
+                Console.WriteLine("  User: " + user.Name);
+
+                ScriptIt(urn, scrp, filename, false);
+            }
+        }
+
+        /*******************************************************************************
         * Script Tables
         *******************************************************************************/
         void scriptTables(Database db, Scripter scrp, Urn[] urn)
@@ -216,7 +245,7 @@ $3");
                     }
                     else if (ndx.IndexKeyType.ToString() == "DriPrimaryKey")
                     {
-                        filename = keyPath + @"\" + scrub(tbl.Schema) + "." + scrub(tbl.Name)
+                        filename = keyPath + @"\" + scrub(tbl.Schema) + ".1." + scrub(tbl.Name)
                                  + "." + scrub(ndx.Name) + ".pkey.sql";
                     }
                     else

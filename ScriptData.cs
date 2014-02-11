@@ -18,7 +18,7 @@ namespace dbscript
         private bool _for_fixtures;
         private string _where_clause;
 
-        private const int ROW_LIMIT = 10000;
+        private const int ROW_LIMIT = 2000;
 
         public ScriptData(Connection conn, string dbFilesPath, string dbName, string tblName)
         :this(conn, dbFilesPath, dbName, tblName, -1, false, "")
@@ -111,7 +111,7 @@ namespace dbscript
             Console.WriteLine("generating script file: " + filename);
             // write file
             TextWriter tw = new StreamWriter(filename);
-            if (withTruncate == true) tw.WriteLine("TRUNCATE TABLE [{0}]", _table); // fixtures don't truncate tables
+            if (withTruncate == true) tw.WriteLine("DELETE FROM [{0}]", _table); // fixtures don't truncate tables
             if (_tbl_has_identity == true) tw.WriteLine("SET IDENTITY_INSERT [{0}] ON", _table);
 
             tw.WriteLine("INSERT INTO [{0}] (", _table);
