@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Microsoft.SqlServer.Management.Smo;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Sdk.Sfc;
+using System.Collections.Specialized;
 
 namespace dbscript
 {
@@ -14,14 +15,14 @@ namespace dbscript
     {
         public int objectCount = 0;
 
-        private string m_dbPath;
-        private string m_database;
-        private Connection m_connection;
+        private string _dbPath;
+        private string _database;
+        private Connection _connection;
 
         public ScriptDB(string dbName, Connection conn)
         {
-            m_database = dbName;
-            m_connection = conn;
+            _database = dbName;
+            _connection = conn;
         }
 
         public void scriptDB(string directory)
@@ -29,13 +30,13 @@ namespace dbscript
 
             DateTime began = DateTime.Now;
 
-            m_dbPath = generateScriptPath(directory);
+            _dbPath = generateScriptPath(directory);
 
             Console.WriteLine("\n**********************************************");
-            Console.WriteLine("Scripting [" + m_database + "] to " + m_dbPath);
+            Console.WriteLine("Scripting [" + _database + "] to " + _dbPath);
             Console.WriteLine("**********************************************\n");
 
-            Server srvr = m_connection.server(m_database);
+            Server srvr = _connection.server(_database);
             try
             {
                 srvr.Initialize();
@@ -43,15 +44,15 @@ namespace dbscript
             }
             catch (Exception e)
             {
-                Console.WriteLine("\nERROR: Connection to Server " + m_connection.serverName + ", Database " + m_database + " failed\n");
+                Console.WriteLine("\nERROR: Connection to Server " + _connection.serverName + ", Database " + _database + " failed\n");
                 Console.WriteLine(e);
                 return;
             }
 
-            Database db = srvr.Databases[m_database];
+            Database db = srvr.Databases[_database];
             if (db == null)
             {
-                Console.WriteLine("\nERROR: Database " + m_database + " does not exist\n");
+                Console.WriteLine("\nERROR: Database " + _database + " does not exist\n");
                 return;
             }
 
@@ -77,7 +78,8 @@ namespace dbscript
             
 
             // scripting the objects
-            scriptDatabase(db, scrp, urn);
+            //scriptDatabase(db, scrp, urn);
+            scriptUsers(db, scrp, urn);
             scriptTables(db, scrp, urn);
             scriptViews(db, scrp, urn);
             scriptStoredProcedures(db, scrp, urn);
@@ -86,9 +88,9 @@ namespace dbscript
             // done!
             DateTime ended = DateTime.Now;
 
-            Console.WriteLine("\n[" + m_database + "] began: " + began.ToLongTimeString() + ", ended: " + ended.ToLongTimeString());
+            Console.WriteLine("\n[" + _database + "] began: " + began.ToLongTimeString() + ", ended: " + ended.ToLongTimeString());
             Console.WriteLine("Number of objects scripted: " + objectCount.ToString());
-            Console.WriteLine("\n[" + m_database + "] done....");
+            Console.WriteLine("\n[" + _database + "] done....");
 
         }
 
@@ -102,10 +104,33 @@ namespace dbscript
         void ScriptIt(Urn[] urn, Scripter scrp, string filename)
         {
             scrp.Options.FileName = filename;
+            //override previous settings.
+            scrp.Options.IncludeIfNotExists = true;
+            //var createPattern = new Regex(@"(N'CREATE)(.*)$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+            var createPattern = new Regex(@"CREATE PROCEDURE \[(.*)\]\.\[(.*)\](.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+            //createPattern = new Regex(@"CREATE PROCEDURE (dbo\..*)(\(.*)");
 
             try
             {
                 scrp.Script(urn);
+                
+                var reader = new StreamReader(filename);
+                var createScript = reader.ReadToEnd();
+                reader.Close();
+//Did the initial research on this.  For our needs it's not that helpful.  To many regular expressions required.
+/*
+                var alterScript = createPattern.Replace(createScript, @"CREATE PROCEDURE [$1].[$2] AS RAISERROR(''Empty Stored Proc'', 16, 1) WITH SETERROR'
+END
+GO
+ALTER PROCEDURE [$1].[$2]
+$3");
+                int index = alterScript.LastIndexOf("'");
+                alterScript = alterScript.Substring(0, alterScript.LastIndexOf("'")) + "GO";
+                var writer = new StreamWriter(filename);
+                writer.Write(alterScript);
+                writer.Close();
+*/  
             }
             catch (Exception e)
             {
@@ -126,11 +151,39 @@ namespace dbscript
             string filename;
             urn[0] = db.Urn;
 
-            filename = m_dbPath + @"\" + scrub(db.Name) + ".database.sql";
+            filename = _dbPath + @"\" + scrub(db.Name) + ".database.sql";
             Console.WriteLine("Database: " + db.Name);
 
             // script the database
             ScriptIt(urn, scrp, filename);
+        }
+
+        /*******************************************************************************
+        * Script Users
+        *******************************************************************************/
+        void scriptUsers(Database db, Scripter scrp, Urn[] urn)
+        {
+            string filename;
+            string userPath = _dbPath + @"\runAfterCreateDatabase";
+            Directory.CreateDirectory(userPath);
+
+            scrp.Options.Permissions = true;
+
+            foreach (User user in db.Users)
+            {
+                // skip system procedures
+                if (user.IsSystemObject)
+                {
+                    continue;
+                }
+
+                urn[0] = user.Urn;
+
+                filename = userPath + @"\" + scrub(user.Name) + ".user.sql";
+                Console.WriteLine("  User: " + user.Name);
+
+                ScriptIt(urn, scrp, filename, false);
+            }
         }
 
         /*******************************************************************************
@@ -139,7 +192,7 @@ namespace dbscript
         void scriptTables(Database db, Scripter scrp, Urn[] urn)
         {
             string filename;
-            string tblPath = m_dbPath + @"\Tables";
+            string tblPath = _dbPath + @"\Up";
             Directory.CreateDirectory(tblPath);
 
             foreach (Table tbl in db.Tables)
@@ -170,14 +223,14 @@ namespace dbscript
                 string command = "EXEC sp_helprotect"
                            + "  @name = '" + tbl.Name + "'"
                            + ", @grantorname = '" + tbl.Schema + "'";
-                ScriptPermissions(m_connection.connectionString(), command, filename);
+                ScriptPermissions(_connection.connectionString(), command, filename);
 
 
                 // Script Table Indexes
                 string keyPath = tblPath + @"\Keys";
                 Directory.CreateDirectory(keyPath);
 
-                string ndxPath = tblPath + @"\Indexes";
+                string ndxPath = tblPath + @"..\..\Indexes";
                 Directory.CreateDirectory(ndxPath);
 
                 foreach (Index ndx in tbl.Indexes)
@@ -192,7 +245,7 @@ namespace dbscript
                     }
                     else if (ndx.IndexKeyType.ToString() == "DriPrimaryKey")
                     {
-                        filename = keyPath + @"\" + scrub(tbl.Schema) + "." + scrub(tbl.Name)
+                        filename = keyPath + @"\" + scrub(tbl.Schema) + ".1." + scrub(tbl.Name)
                                  + "." + scrub(ndx.Name) + ".pkey.sql";
                     }
                     else
@@ -284,7 +337,7 @@ namespace dbscript
         void scriptViews(Database db, Scripter scrp, Urn[] urn)
         {
             string filename;
-            string vwPath = m_dbPath + @"\Views";
+            string vwPath = _dbPath + @"\Views";
             Directory.CreateDirectory(vwPath);
 
             foreach (View vw in db.Views)
@@ -306,16 +359,11 @@ namespace dbscript
                 Console.WriteLine("  View: " + vw.Schema + "." + vw.Name);
 
                 // script the view
-                ScriptIt(urn, scrp, filename, true);
+                //ScriptIt(urn, scrp, filename, true);
                 ScriptIt(urn, scrp, filename, false);
 
-                string command = "EXEC sp_helprotect"
-                                  + "  @name = '" + vw.Name + "'"
-                                  + ", @grantorname = '" + vw.Schema + "'";
-
-
                 // Script View Indexes
-                string ndxPath = vwPath + @"\Indexes";
+                string ndxPath = vwPath + @"..\..\Indexes";
                 Directory.CreateDirectory(ndxPath);
 
                 foreach (Index ndx in vw.Indexes)
@@ -354,7 +402,7 @@ namespace dbscript
         void scriptStoredProcedures(Database db, Scripter scrp, Urn[] urn)
         {
             string filename;
-            string procPath = m_dbPath + @"\Stored Procedures";
+            string procPath = _dbPath + @"\Sprocs";
             Directory.CreateDirectory(procPath);
 
             scrp.Options.Permissions = true;
@@ -373,7 +421,7 @@ namespace dbscript
                 Console.WriteLine("  Stored Procedure: " + proc.Schema + "." + proc.Name);
 
                 // script the procedure with drop statement
-                ScriptIt(urn, scrp, filename, true);
+                //ScriptIt(urn, scrp, filename, true);
                 ScriptIt(urn, scrp, filename, false);
             }
         }
@@ -385,7 +433,7 @@ namespace dbscript
         void scriptUserDefinedFunctions(Database db, Scripter scrp, Urn[] urn)
         {
             string filename;
-            string funcPath = m_dbPath + @"\Functions";
+            string funcPath = _dbPath + @"\Functions";
             Directory.CreateDirectory(funcPath);
 
             scrp.Options.ScriptSchema = true;
@@ -404,7 +452,7 @@ namespace dbscript
                 Console.WriteLine("  User Defined Function: " + func.Schema + "." + func.Name);
 
                 // script the function with drop statement
-                ScriptIt(urn, scrp, filename, true);
+                //ScriptIt(urn, scrp, filename, true);
                 ScriptIt(urn, scrp, filename, false);
             }
         }
@@ -416,7 +464,7 @@ namespace dbscript
         void scriptXmlSchemaCollections(Database db, Scripter scrp, Urn[] urn)
         {
             string filename;
-            string xmlPath = m_dbPath + @"\XML Schema Collections";
+            string xmlPath = _dbPath + @"\XML Schema Collections";
             Directory.CreateDirectory(xmlPath);
 
             foreach (XmlSchemaCollection xml in db.XmlSchemaCollections)
@@ -552,7 +600,7 @@ namespace dbscript
                 }
             }
 
-            var dbPath = String.Format(@"{0}\{1}\SchemaObjects\", srvrPath, m_database);
+            var dbPath = String.Format(@"{0}\{1}\SchemaObjects\", srvrPath, _database);
 
             if (Directory.Exists(dbPath))
             {

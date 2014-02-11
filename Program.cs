@@ -35,7 +35,8 @@ namespace dbscript
             *  -s <server instance>
             *  -u <username>
             *  -p <password>
-            *  -d <database name> 
+            *  -d <database name>
+            *  -t trusted connection
             *  
             *  [for scripting data]
             *  --table <table name> 
@@ -46,11 +47,12 @@ namespace dbscript
            */
             
             // basic options
-            string svr = "";
+            string svr = ""; 
             string usr = "";
             string pwd = "";
             string dbs = "";
             string pth = "";
+            bool trustedConnection = false;
 
             // other options
             string tbl = "";
@@ -59,8 +61,8 @@ namespace dbscript
             bool with_fixtures = false;
             string where_clause = "";
 
-            // 10+ parameters are required 
-            if (args.Length < 9)
+            // 7+ parameters are required 
+            if (args.Length < 8)
             {
                 PrintInstructions();
                 return;
@@ -97,7 +99,10 @@ namespace dbscript
                     case "-p":
                         pwd = args[i + 1];
                         break;
-                    
+                    case "-t":
+                        if (pwd != "" || usr != "") Console.WriteLine(args[i] + "argument only applies if no usrname or password is set");
+                        trustedConnection = true;
+                        break;
                     case "--fixtures":
                         if (util.ToLower() == CMD_SCRIPT_OBJECTS) Console.WriteLine(args[i] + " argument does not apply to the ScriptDbObjects utility");
                         with_fixtures = true;
@@ -131,26 +136,30 @@ namespace dbscript
             //
 
             // all of these are required all the time
-            if (svr == "" || usr == "" || pwd == "" || pth == "")
+            if (pwd != "" && trustedConnection || usr != "" && trustedConnection || svr == "" || pth == "")
             {
                 PrintInstructions();
                 return;
             }
 
             // if creating a database - it should only be a local instance??
+            /*
             if (util.ToLower() == CMD_CREATE_DATABASE && !svr.Contains(@"\SQLEXPRESS"))
             {
                 Console.WriteLine("The " + util + " function should only be used on workstation installations of SQLEXPRESS.");
                 return;
             }
+            */
 
             // if creating a database or insert script, need the db name
+            /*
             if ((util.ToLower() == CMD_CREATE_DATABASE || util.ToLower() == CMD_SCRIPT_DATA) && dbs == "")
             {
                 Console.WriteLine("The " + util + " function requires the database name to be specified.");
                 PrintInstructions();
                 return;
             }
+            */
 
             // if scripting table data, tablename must be provided
             if (util.ToLower() == CMD_SCRIPT_DATA && tbl == "" && all_tables == false)
@@ -161,7 +170,7 @@ namespace dbscript
             }
 
             // establish and test db connection
-            Connection connection = new Connection(svr, usr, pwd);
+            Connection connection = new Connection(svr, usr, pwd, trustedConnection);
             if (connection.testConnection() != true)
             {
                 Console.WriteLine("Database connection could not be established.");
@@ -176,11 +185,12 @@ namespace dbscript
             }
 
             // Create Database
+            /*
             if (util.ToLower() == CMD_CREATE_DATABASE)
             {
                 CreateDatabase db = new CreateDatabase(connection, pth, dbs, with_fixtures);
             }
-
+            */
             // Script Objects
             if (util.ToLower() == CMD_SCRIPT_OBJECTS)
             {
@@ -213,18 +223,17 @@ DBScripter - DataBase scripting tool.
 Usage:
 ---------------------------------
 
-> dbscript <UtilityName> -f ""<Path>"" -s <ServerName> -u <Username> -p <Password> -d <Database> [--table <Table> --alltables --limit --fixtures]
+> dbscript <UtilityName> -f ""<Path>"" -s <ServerName> -u <Username> -p <Password> -d <Database> -t [--table <Table> --alltables --limit --fixtures]
 
-Available utilities are ScriptDbObjects, ScriptData & CreateDatabase
+Available utilities are ScriptDbObjects & ScriptData 
 
 The <Root Path> is the starting point for reading/writing all your database creation scripts (probably within a subversion branch).
 The <ServerName> is the server instance you are connectiong to. For a local installation of SQLEXPRESS it will be PCNAME\SQLEXPRESS
 <Database> is the database you want to script or build. This parameter is optional when using ScriptDbObjects. If it is not supplied the utility will script all databases.      
 
-When creating a database, the Root Path directory must contain a ""databasename.database.sql"" file as created by the ScriptDbObjects utility. 
-If the database already exists, it will be dropped and then recreated. 
+When scripting databases the user credentials supplied should have sufficient permissions (preferably 'sa' account).
 
-When creating or scripting databases the user credentials supplied should have sufficient permissions (preferably 'sa' account).
+-t option is trusted connection, which can be used instead of username and password.
 
 
 Options:
@@ -244,8 +253,6 @@ Examples:
 ---------------------------------
 
 > dbscript ScriptDbObjects -f ""\dev\files\branches\myFeatureBranch\Databases"" -s MYPC\SQLEXPRESS -u sa -p adminpass -d textme
-
-> dbscript CreateDatabase -d textme -f ""\dev\files\branches\myFeatureBranch\Databases"" -s MYPC\SQLEXPRESS -u sa -p adminpass --fixtures
 
 > dbscript ScriptData  -d textme --table GlobalOptions -f ""\dev\files\branches\myFeatureBranch\Databases"" -s MYPC\SQLEXPRESS -u sa -p adminpass
 

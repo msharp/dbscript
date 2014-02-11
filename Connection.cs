@@ -13,13 +13,15 @@ namespace dbscript
         public string username;
         public string password;
         public bool connectionOK;
+        public bool trustedConnection;
         public string connectionError = "";
 
-        public Connection(string svrName, string usrName, string pssWord)
+        public Connection(string svrName, string usrName, string pssWord, bool trstConnection)
         {
             serverName = svrName;
             username = usrName;
             password = pssWord;
+            trustedConnection = trstConnection;
         }
 
         public string connectionString()
@@ -27,6 +29,10 @@ namespace dbscript
             string connstr = "Data Source=" + serverName
                            + "; User Id=" + username
                            + "; Password=" + password;
+
+            if (trustedConnection)
+                connstr = String.Format("Server={0};Database=financials;Trusted_Connection=True;", serverName);    
+            
             return connstr;
         }
 
@@ -74,9 +80,18 @@ namespace dbscript
         public ServerConnection serverConnection()
         {
             ServerConnection conn = new ServerConnection();
-            conn.LoginSecure = false;
-            conn.Login = username;
-            conn.Password = password;
+
+            if (trustedConnection)
+            {
+                conn.LoginSecure = true;
+            }
+            else
+            {
+                conn.LoginSecure = false;
+                conn.Login = username;
+                conn.Password = password;
+            }
+
             conn.ServerInstance = serverName;
             return conn;
         }

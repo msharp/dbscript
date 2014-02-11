@@ -11,14 +11,14 @@ namespace dbscript
 {
     class ScriptData
     {
-        private string m_table;
-        private string m_database;
-        private int m_limit_results;
-        private bool m_tbl_has_identity;
-        private bool m_for_fixtures;
-        private string m_where_clause;
+        private string _table;
+        private string _database;
+        private int _limit_results;
+        private bool _tbl_has_identity;
+        private bool _for_fixtures;
+        private string _where_clause;
 
-        private const int ROW_LIMIT = 10000;
+        private const int ROW_LIMIT = 2000;
 
         public ScriptData(Connection conn, string dbFilesPath, string dbName, string tblName)
         :this(conn, dbFilesPath, dbName, tblName, -1, false, "")
@@ -32,15 +32,15 @@ namespace dbscript
             string dbDataScriptsPath = getDataScriptsPath(dbFilesPath, dbName, fixtures);
 
             string filename = String.Format(@"{0}\{1}.insert.sql", dbDataScriptsPath, tblName);
-            m_table = tblName;
-            m_database = dbName;
-            m_limit_results = limit;
-            m_for_fixtures = fixtures;
-            m_where_clause = where;
+            _table = tblName;
+            _database = dbName;
+            _limit_results = limit;
+            _for_fixtures = fixtures;
+            _where_clause = where;
 
-            m_tbl_has_identity = hasIdentity(conn, dbName, tblName);
+            _tbl_has_identity = hasIdentity(conn, dbName, tblName);
 
-            if (m_tbl_has_identity == false) Console.WriteLine("table has no identity column !!");            
+            if (_tbl_has_identity == false) Console.WriteLine("table has no identity column !!");            
             ArrayList cols = columns(conn);
             Console.WriteLine("got " + cols.Count + " columns ");
 
@@ -102,7 +102,7 @@ namespace dbscript
         private TextWriter getScriptFileForWriting(string filename, ArrayList cols)
         {
             bool trunc = true;
-            if (m_for_fixtures == true) trunc = false;
+            if (_for_fixtures == true) trunc = false;
             return getScriptFileForWriting(filename, cols, trunc);
         }
 
@@ -111,10 +111,10 @@ namespace dbscript
             Console.WriteLine("generating script file: " + filename);
             // write file
             TextWriter tw = new StreamWriter(filename);
-            if (withTruncate == true) tw.WriteLine("TRUNCATE TABLE [{0}]", m_table); // fixtures don't truncate tables
-            if (m_tbl_has_identity == true) tw.WriteLine("SET IDENTITY_INSERT [{0}] ON", m_table);
+            if (withTruncate == true) tw.WriteLine("DELETE FROM [{0}]", _table); // fixtures don't truncate tables
+            if (_tbl_has_identity == true) tw.WriteLine("SET IDENTITY_INSERT [{0}] ON", _table);
 
-            tw.WriteLine("INSERT INTO [{0}] (", m_table);
+            tw.WriteLine("INSERT INTO [{0}] (", _table);
             tw.WriteLine("[" + string.Join("],[", cols.ToArray(typeof(string)) as string[]) + "]");
             tw.WriteLine(")\n");
 
@@ -122,7 +122,7 @@ namespace dbscript
         }
         private void closeScriptFile(TextWriter tw)
         {
-            if (m_tbl_has_identity == true) tw.WriteLine("SET IDENTITY_INSERT [{0}] OFF", m_table);
+            if (_tbl_has_identity == true) tw.WriteLine("SET IDENTITY_INSERT [{0}] OFF", _table);
             tw.Close();
         }
 
@@ -133,16 +133,16 @@ namespace dbscript
             string limit = "";
             string order_by = ""; // if negative number for LIMIT then order descending (by first column)
 
-            if (m_limit_results != 0)
+            if (_limit_results != 0)
             {
                 // get top n
-                limit = String.Format(@"TOP {0} ", Math.Abs(m_limit_results).ToString());
+                limit = String.Format(@"TOP {0} ", Math.Abs(_limit_results).ToString());
                 // ordering
                 order_by = "ORDER BY " + cols[0];
-                if (m_limit_results < 0) order_by += " DESC";
+                if (_limit_results < 0) order_by += " DESC";
             }
 
-            string command = String.Format(@"SELECT {0}* FROM [{1}].[dbo].[{2}] WITH(NOLOCK) {3} {4}", limit, m_database, m_table, m_where_clause, order_by);
+            string command = String.Format(@"SELECT {0}* FROM [{1}].[dbo].[{2}] WITH(NOLOCK) {3} {4}", limit, _database, _table, _where_clause, order_by);
 
             SqlConnection sqlconn = new SqlConnection(conn.connectionString());
             sqlconn.Open();
@@ -173,9 +173,9 @@ namespace dbscript
             SqlConnection sqlconn = new SqlConnection(conn.connectionString());
             sqlconn.Open();
 
-            SqlCommand cmd = new SqlCommand(m_database+".dbo.sp_columns", sqlconn);
+            SqlCommand cmd = new SqlCommand(_database+".dbo.sp_columns", sqlconn);
             cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.Add(new SqlParameter("@table_name", m_table));
+            cmd.Parameters.Add(new SqlParameter("@table_name", _table));
 
             // execute the command
             SqlDataReader rdr = cmd.ExecuteReader();
@@ -190,7 +190,7 @@ namespace dbscript
         }
         private string dataScript(ArrayList cols, List<Hashtable> data)
         {
-            string script = @"INSERT INTO [" + m_table + "] (";
+            string script = @"INSERT INTO [" + _table + "] (";
             script += string.Join(",", cols.ToArray(typeof(string)) as string[]);
             script += ")\n";
 
